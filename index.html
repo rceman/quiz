@@ -1,10 +1,653 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="lv">
 <head>
-    <meta charset="UTF-8">
-    <title>Hello</title>
+    <meta charset="UTF-8" />
+    <title>Materiālu tests</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f3f4f6;
+            color: #111827;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .app {
+            max-width: 900px;
+            width: 100%;
+            padding: 16px;
+        }
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+        }
+        h1 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 12px;
+            font-size: 1.8rem;
+        }
+        p.lead {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #4b5563;
+        }
+        button {
+            border: none;
+            border-radius: 999px;
+            padding: 10px 22px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: #2563eb;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #111827;
+        }
+        label {
+            cursor: pointer;
+        }
+        .hidden { display: none; }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .question-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        .progress {
+            font-size: 0.95rem;
+            color: #4b5563;
+        }
+
+        .sprite-wrapper {
+            display: flex;
+            justify-content: center;
+            margin: 16px 0;
+        }
+        .sprite-wrapper canvas {
+            border-radius: 12px;
+            border: 2px solid #e5e7eb;
+            background: #ffffff;
+            max-width: 220px;
+            width: 60vw;
+            height: auto;
+        }
+
+        .options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .option {
+            border-radius: 999px;
+            border: 1px solid #e5e7eb;
+            padding: 8px 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f9fafb;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .option input {
+            transform: scale(1.15);
+        }
+
+        .feedback {
+            min-height: 24px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        .feedback.ok { color: #15803d; }
+        .feedback.bad { color: #b91c1c; }
+
+        .summary {
+            text-align: center;
+        }
+        .summary h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
+        }
+        .summary p {
+            margin: 4px 0;
+        }
+
+        .small {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+    </style>
 </head>
 <body>
-There
+<div class="app">
+    <div class="card" id="start-screen">
+        <h1>Materiālu tests</h1>
+        <p class="lead">Pārbaudi, no kādiem materiāliem ir izgatavoti priekšmeti un kādas ir to īpašības.</p>
+
+        <div class="controls">
+            <label>
+                <input type="checkbox" id="use-all" />
+                Izmantot visus jautājumus (ne tikai 10)
+            </label>
+        </div>
+
+        <div style="text-align:center; margin-bottom:10px;">
+            <button id="start-btn">Sākt testu</button>
+        </div>
+
+        <p class="small" style="text-align:center;">
+            Padoms vecākiem: šajā testā ir gan jautājumi par <b>materiāliem</b>,
+            gan par to <b>īpašībām</b> (izturība, lokanums u.c.).
+        </p>
+    </div>
+
+    <div class="card hidden" id="quiz-screen">
+        <div class="question-header">
+            <div class="question-text" id="question-text"></div>
+            <div class="progress" id="progress"></div>
+        </div>
+
+        <div class="sprite-wrapper" id="sprite-wrapper"></div>
+
+        <form id="options-form">
+            <div class="options" id="options-container"></div>
+        </form>
+
+        <div class="feedback" id="feedback"></div>
+
+        <div class="controls">
+            <button type="button" id="answer-btn">Atbildēt</button>
+            <button type="button" id="restart-btn" class="btn-secondary hidden">Sākt vēlreiz</button>
+        </div>
+
+        <p class="small" id="question-hint"></p>
+    </div>
+
+    <img id="sprite-image" src="sprites.png" alt="" style="display:none;" />
+</div>
+
+<script>
+    // ----- Sprite sheet config -----
+    const SPRITE_COLS = 5;
+    const SPRITE_ROWS = 5;
+
+    const spriteImage = document.getElementById('sprite-image');
+    let spriteReady = false;
+
+    spriteImage.addEventListener('load', () => {
+        spriteReady = true;
+    });
+
+    /**
+     * Creates a canvas element containing one sprite from the sprite sheet.
+     * index 0..24 (left-to-right, top-to-bottom)
+     */
+    function createSpriteCanvas(index) {
+        if (!spriteReady) return null;
+
+        const w = spriteImage.naturalWidth / SPRITE_COLS;
+        const h = spriteImage.naturalHeight / SPRITE_ROWS;
+
+        const col = index % SPRITE_COLS;
+        const row = Math.floor(index / SPRITE_COLS);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+
+        ctx.drawImage(
+            spriteImage,
+            col * w,
+            row * h,
+            w,
+            h,
+            0,
+            0,
+            w,
+            h
+        );
+
+        return canvas;
+    }
+
+    // ----- Question data -----
+    // Materials: plastmasa, māls, koks, stikls, gumija, metāls, audums
+    const MATERIALS = ['plastmasa', 'māls', 'koks', 'stikls', 'gumija', 'metāls', 'audums'];
+
+    /**
+     * type: 'single', 'multi', 'property'
+     * spriteIndex: 0..24 or null
+     * correct: array of strings (materials or property answers)
+     */
+    const QUESTIONS = [
+        // --- Only one material ---
+        {
+            id: 'bucket',
+            type: 'single',
+            spriteIndex: 0, // plastmasas spainis
+            question: 'No kāda materiāla ir izgatavots šis spainis?',
+            options: shuffleArray(['plastmasa', 'metāls', 'koks', 'stikls']),
+            correct: ['plastmasa'],
+            hint: 'Padomā, vai spainis rūsē vai ir viegls un krāsains.'
+        },
+        {
+            id: 'flower-pot',
+            type: 'single',
+            spriteIndex: 1, // māla puķu pods
+            question: 'No kāda materiāla ir izgatavots šis puķu pods?',
+            options: shuffleArray(['māls', 'plastmasa', 'koks', 'gumija']),
+            correct: ['māls'],
+            hint: 'Šāds pods var viegli saplaisāt, ja nokrīt.'
+        },
+        {
+            id: 'wooden-spoon',
+            type: 'single',
+            spriteIndex: 2,
+            question: 'No kāda materiāla ir izgatavota šī karote?',
+            options: shuffleArray(['koks', 'metāls', 'stikls', 'audums']),
+            correct: ['koks'],
+            hint: 'Šo karoti var izmantot gatavojot ēst katlā.'
+        },
+        {
+            id: 'glass',
+            type: 'single',
+            spriteIndex: 3,
+            question: 'No kāda materiāla ir izgatavota šī glāze?',
+            options: shuffleArray(['stikls', 'plastmasa', 'metāls', 'koks']),
+            correct: ['stikls'],
+            hint: 'Ja to nomet zemē, tā saplīst daudzos gabalos.'
+        },
+        {
+            id: 'rubber-ball',
+            type: 'single',
+            spriteIndex: 4,
+            question: 'No kāda materiāla ir izgatavota šī bumba?',
+            options: shuffleArray(['gumija', 'stikls', 'māls', 'koks']),
+            correct: ['gumija'],
+            hint: 'Šo bumbu var saspiest, un tā atkal atgūst formu.'
+        },
+        {
+            id: 'metal-spoon',
+            type: 'single',
+            spriteIndex: 5,
+            question: 'No kāda materiāla ir izgatavota šī karote?',
+            options: shuffleArray(['metāls', 'plastmasa', 'koks', 'māls']),
+            correct: ['metāls'],
+            hint: 'Šo karoti var pulēt un tā spīd.'
+        },
+        {
+            id: 'tshirt',
+            type: 'single',
+            spriteIndex: 6,
+            question: 'No kāda materiāla ir izgatavots T–krekls?',
+            options: shuffleArray(['audums', 'plastmasa', 'metāls', 'koks']),
+            correct: ['audums'],
+            hint: 'Šo materiālu var sašūt un to var salocīt.'
+        },
+        {
+            id: 'plastic-bottle',
+            type: 'single',
+            spriteIndex: 7,
+            question: 'No kāda materiāla ir izgatavota pudelīte?',
+            options: shuffleArray(['plastmasa', 'stikls', 'metāls', 'māls']),
+            correct: ['plastmasa'],
+            hint: 'Tā ir viegla un, saspiežot, var ieļaunoties forma.'
+        },
+        {
+            id: 'clay-plate',
+            type: 'single',
+            spriteIndex: 8,
+            question: 'No kāda materiāla ir izgatavots šķīvis?',
+            options: shuffleArray(['māls', 'plastmasa', 'koks', 'metāls']),
+            correct: ['māls'],
+            hint: 'Tādu šķīvi bieži izmanto kā keramikas trauku.'
+        },
+        {
+            id: 'wooden-chair',
+            type: 'single',
+            spriteIndex: 9,
+            question: 'No kāda materiāla galvenokārt ir izgatavots krēsls?',
+            options: shuffleArray(['koks', 'metāls', 'plastmasa', 'gumija']),
+            correct: ['koks'],
+            hint: 'Skolā un mājās bieži redzēsi šādus krēslus.'
+        },
+
+        // --- Multi-material objects (multi-select) ---
+        {
+            id: 'wheelbarrow',
+            type: 'multi',
+            spriteIndex: 20,
+            question: 'No kādiem materiāliem ir izgatavota ķerra?',
+            options: MATERIALS,
+            correct: ['metāls', 'gumija'],
+            hint: 'Kaste ir stingra, bet ritenis ir mīkstāks.'
+        },
+        {
+            id: 'shovel',
+            type: 'multi',
+            spriteIndex: 21,
+            question: 'No kādiem materiāliem ir izgatavota lāpsta?',
+            options: MATERIALS,
+            correct: ['metāls', 'koks'],
+            hint: 'Padomā par kātu un lāpstas daļu.'
+        },
+        {
+            id: 'hammer',
+            type: 'multi',
+            spriteIndex: 22,
+            question: 'No kādiem materiāliem ir izgatavots āmurs?',
+            options: MATERIALS,
+            correct: ['metāls', 'koks'],
+            hint: 'Viena daļa sit, otra daļa turas rokā.'
+        },
+        {
+            id: 'pot',
+            type: 'multi',
+            spriteIndex: 23,
+            question: 'No kādiem materiāliem ir izgatavots katls ar vāku?',
+            options: MATERIALS,
+            correct: ['metāls', 'stikls', 'plastmasa'],
+            hint: 'Katls ir stingrs, vāks caurspīdīgs, rokturi neuzkarst tik ātri.'
+        },
+        {
+            id: 'school-bag',
+            type: 'multi',
+            spriteIndex: 24,
+            question: 'No kādiem materiāliem ir izgatavota skolas soma?',
+            options: MATERIALS,
+            correct: ['audums', 'plastmasa'],
+            hint: 'Paskaties uz audumu un sprādzēm / rāvējslēdzējiem.'
+        },
+
+        // --- Property questions (no sprite) ---
+        {
+            id: 'fragile',
+            type: 'property',
+            spriteIndex: null,
+            question: 'Kurš materiāls ir vistrauslākais — viegli saplīst, ja to nomet?',
+            options: shuffleArray(['stikls', 'gumija', 'audums', 'plastmasa']),
+            correct: ['stikls'],
+            hint: 'Domā par glāzi un gumijas bumbu.'
+        },
+        {
+            id: 'flexible',
+            type: 'property',
+            spriteIndex: null,
+            question: 'Kurš materiāls parasti ir vislokanākais?',
+            options: shuffleArray(['gumija', 'metāls', 'māls', 'stikls']),
+            correct: ['gumija'],
+            hint: 'Šo materiālu izmanto šļūtenēm un bumbām.'
+        },
+        {
+            id: 'elastic',
+            type: 'property',
+            spriteIndex: null,
+            question: 'Kurš priekšmets pēc saspiešanas atgūst sākotnējo formu?',
+            options: shuffleArray(['sūklis', 'stikla glāze', 'māla šķīvis', 'koka galds']),
+            correct: ['sūklis'],
+            hint: 'Padomā par elastību — spēju atgūt formu.'
+        },
+        {
+            id: 'scratch',
+            type: 'property',
+            spriteIndex: null,
+            question: 'Ar kuru priekšmetu var vieglāk saskrāpēt koka dēli?',
+            options: shuffleArray(['nazis (metāls)', 'plastmasas ķemme', 'gumijas bumba', 'auduma dvielis']),
+            correct: ['nazis (metāls)'],
+            hint: 'Cietība palīdz saskrāpēt citus materiālus.'
+        },
+        {
+            id: 'heat',
+            type: 'property',
+            spriteIndex: null,
+            question: 'Kurš trauks paliek karsts ātrāk, ja tajā ielej karstu ūdeni?',
+            options: shuffleArray(['metāla katls', 'māla krūze']),
+            correct: ['metāla katls'],
+            hint: 'Dažādi materiāli dažādi vada siltumu.'
+        }
+        // Vēl jautājumus var viegli pievienot šeit, lai kopā būtu ~40.
+    ];
+
+    // ----- Quiz state -----
+    const startScreen = document.getElementById('start-screen');
+    const quizScreen = document.getElementById('quiz-screen');
+    const questionTextEl = document.getElementById('question-text');
+    const progressEl = document.getElementById('progress');
+    const spriteWrapper = document.getElementById('sprite-wrapper');
+    const optionsContainer = document.getElementById('options-container');
+    const feedbackEl = document.getElementById('feedback');
+    const questionHintEl = document.getElementById('question-hint');
+
+    const startBtn = document.getElementById('start-btn');
+    const answerBtn = document.getElementById('answer-btn');
+    const restartBtn = document.getElementById('restart-btn');
+    const useAllCheckbox = document.getElementById('use-all');
+
+    let sessionQuestions = [];
+    let currentIndex = 0;
+    let correctCount = 0;
+    let answered = false;
+
+    startBtn.addEventListener('click', startQuiz);
+    answerBtn.addEventListener('click', handleAnswerClick);
+    restartBtn.addEventListener('click', () => {
+        quizScreen.classList.add('hidden');
+        startScreen.classList.remove('hidden');
+    });
+
+    function startQuiz() {
+        const useAll = useAllCheckbox.checked;
+
+        sessionQuestions = shuffleArray(QUESTIONS.slice()); // copy & shuffle
+        if (!useAll && sessionQuestions.length > 10) {
+            sessionQuestions = sessionQuestions.slice(0, 10);
+        }
+
+        currentIndex = 0;
+        correctCount = 0;
+        answered = false;
+
+        startScreen.classList.add('hidden');
+        quizScreen.classList.remove('hidden');
+        restartBtn.classList.add('hidden');
+        answerBtn.disabled = false;
+        answerBtn.textContent = 'Atbildēt';
+        feedbackEl.textContent = '';
+        feedbackEl.className = 'feedback';
+
+        renderCurrentQuestion();
+    }
+
+    function renderCurrentQuestion() {
+        const q = sessionQuestions[currentIndex];
+        questionTextEl.textContent = q.question;
+        progressEl.textContent = `Jautājums ${currentIndex + 1} / ${sessionQuestions.length}`;
+        questionHintEl.textContent = '';
+        feedbackEl.textContent = '';
+        feedbackEl.className = 'feedback';
+        answered = false;
+        answerBtn.textContent = 'Atbildēt';
+
+        // Sprite
+        spriteWrapper.innerHTML = '';
+        if (q.spriteIndex != null) {
+            const canvas = createSpriteCanvas(q.spriteIndex);
+            if (canvas) {
+                spriteWrapper.appendChild(canvas);
+            }
+        }
+
+        // Options
+        optionsContainer.innerHTML = '';
+        const inputType = q.type === 'multi' ? 'checkbox' : 'radio';
+        const name = 'answer';
+        q.options.forEach((opt, idx) => {
+            const id = `opt-${idx}`;
+            const wrapper = document.createElement('label');
+            wrapper.className = 'option';
+
+            const input = document.createElement('input');
+            input.type = inputType;
+            input.name = name;
+            input.value = opt;
+            input.id = id;
+
+            const span = document.createElement('span');
+            span.textContent = capitalize(opt);
+
+            wrapper.appendChild(input);
+            wrapper.appendChild(span);
+            optionsContainer.appendChild(wrapper);
+        });
+    }
+
+    function handleAnswerClick() {
+        if (!answered) {
+            checkAnswer();
+        } else {
+            goNextQuestion();
+        }
+    }
+
+    function getSelectedValues() {
+        const inputs = optionsContainer.querySelectorAll('input');
+        const selected = [];
+        inputs.forEach(i => {
+            if (i.checked) selected.push(i.value);
+        });
+        return selected;
+    }
+
+    function checkAnswer() {
+        const q = sessionQuestions[currentIndex];
+        const selected = getSelectedValues();
+
+        if (selected.length === 0) {
+            feedbackEl.textContent = 'Izvēlies vismaz vienu atbildi.';
+            feedbackEl.className = 'feedback bad';
+            return;
+        }
+
+        const correctSet = new Set(q.correct);
+        const selectedSet = new Set(selected);
+
+        let isCorrect = true;
+
+        if (correctSet.size !== selectedSet.size) {
+            isCorrect = false;
+        } else {
+            for (const v of correctSet) {
+                if (!selectedSet.has(v)) {
+                    isCorrect = false;
+                    break;
+                }
+            }
+        }
+
+        if (isCorrect) {
+            correctCount++;
+            feedbackEl.textContent = 'Pareizi!';
+            feedbackEl.className = 'feedback ok';
+        } else {
+            feedbackEl.textContent = 'Nepareizi. Pareizā atbilde: ' + q.correct.map(capitalize).join(', ') + '.';
+            feedbackEl.className = 'feedback bad';
+        }
+
+        questionHintEl.textContent = q.hint || '';
+        answered = true;
+
+        if (currentIndex === sessionQuestions.length - 1) {
+            answerBtn.textContent = 'Skatīt rezultātu';
+        } else {
+            answerBtn.textContent = 'Nākamais jautājums';
+        }
+    }
+
+    function goNextQuestion() {
+        if (currentIndex < sessionQuestions.length - 1) {
+            currentIndex++;
+            renderCurrentQuestion();
+        } else {
+            showSummary();
+        }
+    }
+
+    function showSummary() {
+        optionsContainer.innerHTML = '';
+        spriteWrapper.innerHTML = '';
+        feedbackEl.textContent = '';
+        questionHintEl.textContent = '';
+
+        const total = sessionQuestions.length;
+        const percent = Math.round((correctCount / total) * 100);
+
+        questionTextEl.textContent = 'Tests pabeigts!';
+        progressEl.textContent = '';
+
+        const summaryDiv = document.createElement('div');
+        summaryDiv.className = 'summary';
+        summaryDiv.innerHTML = `
+      <h2>Rezultāts: ${correctCount} / ${total}</h2>
+      <p>Tu atbildēji pareizi uz <b>${correctCount}</b> no <b>${total}</b> jautājumiem.</p>
+      <p>Precizitāte: <b>${percent}%</b></p>
+      <p class="small">Mēģini vēlreiz un salīdzini rezultātu!</p>
+    `;
+        optionsContainer.appendChild(summaryDiv);
+
+        answerBtn.disabled = true;
+        restartBtn.classList.remove('hidden');
+    }
+
+    // ----- Helpers -----
+    function shuffleArray(arr) {
+        // Fisher–Yates shuffle
+        const a = arr.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+
+    function capitalize(str) {
+        if (!str) return str;
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+</script>
 </body>
 </html>
