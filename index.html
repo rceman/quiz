@@ -107,7 +107,7 @@
 
         .options {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 10px;
             margin-bottom: 16px;
         }
@@ -123,6 +123,17 @@
         }
         .option input {
             transform: scale(1.15);
+            flex-shrink: 0;
+        }
+        .option span {
+            flex: 1 1 auto;
+        }
+
+        canvas.mini-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 4px;
+            flex-shrink: 0;
         }
 
         .feedback {
@@ -159,7 +170,7 @@
         <div class="controls">
             <label>
                 <input type="checkbox" id="use-all" />
-                Izmantot visus jautājumus (ne tikai 10)
+                Izmantot visus jautājumus (40) vienā testā
             </label>
         </div>
 
@@ -168,8 +179,8 @@
         </div>
 
         <p class="small" style="text-align:center;">
-            Padoms vecākiem: šajā testā ir gan jautājumi par <b>materiāliem</b>,
-            gan par to <b>īpašībām</b> (izturība, lokanums u.c.).
+            Šeit ir jautājumi gan par <b>materiāliem</b> (plastmasa, māls, koks, stikls, gumija, metāls, audums),
+            gan par to <b>īpašībām</b> (lokanums, cietība, trauslums u.c.).
         </p>
     </div>
 
@@ -196,24 +207,18 @@
     </div>
 
     <img id="sprite-image" src="sprites.png" alt="" style="display:none;" />
+    <img id="mini-sprite-image" src="mini-sprites.png" alt="" style="display:none;" />
 </div>
 
 <script>
-    // ----- Sprite sheet config -----
+    // ----- Big sprite sheet -----
     const SPRITE_COLS = 5;
-    const SPRITE_ROWS = 5;
+    const SPRITE_ROWS = 6;
 
     const spriteImage = document.getElementById('sprite-image');
-    let spriteReady = false;
+    let spriteReady = spriteImage.complete && spriteImage.naturalWidth > 0;
+    spriteImage.addEventListener('load', () => { spriteReady = true; });
 
-    spriteImage.addEventListener('load', () => {
-        spriteReady = true;
-    });
-
-    /**
-     * Creates a canvas element containing one sprite from the sprite sheet.
-     * index 0..24 (left-to-right, top-to-bottom)
-     */
     function createSpriteCanvas(index) {
         if (!spriteReady) return null;
 
@@ -245,52 +250,111 @@
         return canvas;
     }
 
+    // ----- Mini sprite sheet -----
+    const MINI_COLS = 5;
+    const MINI_ROWS = 4;
+    const miniSpriteImage = document.getElementById('mini-sprite-image');
+    let miniReady = miniSpriteImage.complete && miniSpriteImage.naturalWidth > 0;
+    miniSpriteImage.addEventListener('load', () => { miniReady = true; });
+
+    function createMiniSpriteCanvas(index) {
+        if (!miniReady) return null;
+
+        const w = miniSpriteImage.naturalWidth / MINI_COLS;
+        const h = miniSpriteImage.naturalHeight / MINI_ROWS;
+
+        const col = index % MINI_COLS;
+        const row = Math.floor(index / MINI_COLS);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+
+        ctx.drawImage(
+            miniSpriteImage,
+            col * w,
+            row * h,
+            w,
+            h,
+            0,
+            0,
+            w,
+            h
+        );
+
+        canvas.classList.add('mini-icon');
+        return canvas;
+    }
+
+    // ----- Mapping option text -> mini sprite index -----
+    const OPTION_SPRITES = {
+        // materiāli
+        'plastmasa': 0,
+        'māls': 1,
+        'koks': 2,
+        'stikls': 3,
+        'gumija': 4,
+        'metāls': 5,
+        'audums': 6,
+
+        // priekšmeti īpašību jautājumiem
+        'nazis (metāls)': 7,
+        'plastmasas ķemme': 8,
+        'sūklis': 9,
+        'koka dēlis': 10,
+        'gumijas šļūtene': 11,
+        'atlasa lente': 12,
+        'gumijas bumba': 13,
+        'stikla glāze': 14,
+        'māla krūze': 15,
+        'metāla katls': 16,
+        'metāla nagla': 17,
+        'koka galds': 18
+    };
+
     // ----- Question data -----
-    // Materials: plastmasa, māls, koks, stikls, gumija, metāls, audums
     const MATERIALS = ['plastmasa', 'māls', 'koks', 'stikls', 'gumija', 'metāls', 'audums'];
 
-    /**
-     * type: 'single', 'multi', 'property'
-     * spriteIndex: 0..24 or null
-     * correct: array of strings (materials or property answers)
-     */
     const QUESTIONS = [
-        // --- Only one material ---
+        // 0–4: first row
         {
             id: 'bucket',
             type: 'single',
-            spriteIndex: 0, // plastmasas spainis
+            spriteIndex: 0,
             question: 'No kāda materiāla ir izgatavots šis spainis?',
             options: shuffleArray(['plastmasa', 'metāls', 'koks', 'stikls']),
             correct: ['plastmasa'],
-            hint: 'Padomā, vai spainis rūsē vai ir viegls un krāsains.'
+            hint: 'Spanis ir viegls un krāsains, nerūsē.'
         },
         {
             id: 'flower-pot',
             type: 'single',
-            spriteIndex: 1, // māla puķu pods
+            spriteIndex: 1,
             question: 'No kāda materiāla ir izgatavots šis puķu pods?',
             options: shuffleArray(['māls', 'plastmasa', 'koks', 'gumija']),
             correct: ['māls'],
-            hint: 'Šāds pods var viegli saplaisāt, ja nokrīt.'
+            hint: 'Šāds pods var saplaisāt, ja nokrīt.'
         },
         {
             id: 'wooden-spoon',
             type: 'single',
             spriteIndex: 2,
             question: 'No kāda materiāla ir izgatavota šī karote?',
-            options: shuffleArray(['koks', 'metāls', 'stikls', 'audums']),
+            options: shuffleArray(['koks', 'metāls', 'stikls', 'plastmasa']),
             correct: ['koks'],
-            hint: 'Šo karoti var izmantot gatavojot ēst katlā.'
+            hint: 'To bieži izmanto gatavojot ēst katlā.'
         },
         {
-            id: 'glass',
+            id: 'glass-cup',
             type: 'single',
             spriteIndex: 3,
             question: 'No kāda materiāla ir izgatavota šī glāze?',
             options: shuffleArray(['stikls', 'plastmasa', 'metāls', 'koks']),
             correct: ['stikls'],
-            hint: 'Ja to nomet zemē, tā saplīst daudzos gabalos.'
+            hint: 'Tā ir caurspīdīga un trausla.'
         },
         {
             id: 'rubber-ball',
@@ -299,8 +363,10 @@
             question: 'No kāda materiāla ir izgatavota šī bumba?',
             options: shuffleArray(['gumija', 'stikls', 'māls', 'koks']),
             correct: ['gumija'],
-            hint: 'Šo bumbu var saspiest, un tā atkal atgūst formu.'
+            hint: 'To var saspiest, tā labi lec.'
         },
+
+        // 5–9: second row
         {
             id: 'metal-spoon',
             type: 'single',
@@ -308,69 +374,163 @@
             question: 'No kāda materiāla ir izgatavota šī karote?',
             options: shuffleArray(['metāls', 'plastmasa', 'koks', 'māls']),
             correct: ['metāls'],
-            hint: 'Šo karoti var pulēt un tā spīd.'
+            hint: 'Tā spīd un neuzsūc ūdeni.'
         },
         {
             id: 'tshirt',
             type: 'single',
             spriteIndex: 6,
-            question: 'No kāda materiāla ir izgatavots T–krekls?',
+            question: 'No kāda materiāla ir izgatavots šis T–krekls?',
             options: shuffleArray(['audums', 'plastmasa', 'metāls', 'koks']),
             correct: ['audums'],
-            hint: 'Šo materiālu var sašūt un to var salocīt.'
+            hint: 'To var izmazgāt un salocīt.'
         },
         {
             id: 'plastic-bottle',
             type: 'single',
             spriteIndex: 7,
-            question: 'No kāda materiāla ir izgatavota pudelīte?',
+            question: 'No kāda materiāla ir izgatavota šī pudele?',
             options: shuffleArray(['plastmasa', 'stikls', 'metāls', 'māls']),
             correct: ['plastmasa'],
-            hint: 'Tā ir viegla un, saspiežot, var ieļaunoties forma.'
+            hint: 'Tā ir viegla un saspiežama.'
         },
         {
             id: 'clay-plate',
             type: 'single',
             spriteIndex: 8,
-            question: 'No kāda materiāla ir izgatavots šķīvis?',
+            question: 'No kāda materiāla ir izgatavots šis šķīvis?',
             options: shuffleArray(['māls', 'plastmasa', 'koks', 'metāls']),
             correct: ['māls'],
-            hint: 'Tādu šķīvi bieži izmanto kā keramikas trauku.'
+            hint: 'Tas ir keramikas trauks.'
         },
         {
             id: 'wooden-chair',
             type: 'single',
             spriteIndex: 9,
-            question: 'No kāda materiāla galvenokārt ir izgatavots krēsls?',
+            question: 'No kāda materiāla galvenokārt ir izgatavots šis krēsls?',
             options: shuffleArray(['koks', 'metāls', 'plastmasa', 'gumija']),
             correct: ['koks'],
-            hint: 'Skolā un mājās bieži redzēsi šādus krēslus.'
+            hint: 'Līdzīgus krēslus var redzēt klasē.'
         },
 
-        // --- Multi-material objects (multi-select) ---
+        // 10–14: third row
+        {
+            id: 'window',
+            type: 'multi',
+            spriteIndex: 10,
+            question: 'No kādiem materiāliem ir izgatavots šis logs?',
+            options: MATERIALS,
+            correct: ['koks', 'stikls'],
+            hint: 'Apskati rāmi un caurspīdīgo daļu.'
+        },
+        {
+            id: 'rubber-boots',
+            type: 'single',
+            spriteIndex: 11,
+            question: 'No kāda materiāla ir izgatavoti gumijas zābaki?',
+            options: shuffleArray(['gumija', 'audums', 'koks', 'māls']),
+            correct: ['gumija'],
+            hint: 'Tie neizlaiž ūdeni un ir lokani.'
+        },
+        {
+            id: 'metal-key',
+            type: 'single',
+            spriteIndex: 12,
+            question: 'No kāda materiāla ir izgatavota šī atslēga?',
+            options: shuffleArray(['metāls', 'koks', 'plastmasa', 'māls']),
+            correct: ['metāls'],
+            hint: 'Tai jābūt cietai un izturīgai.'
+        },
+        {
+            id: 'towel',
+            type: 'single',
+            spriteIndex: 13,
+            question: 'No kāda materiāla ir izgatavots šis dvielis?',
+            options: shuffleArray(['audums', 'metāls', 'stikls', 'koks']),
+            correct: ['audums'],
+            hint: 'Tas labi uzsūc ūdeni un ir mīksts.'
+        },
+        {
+            id: 'toy-car',
+            type: 'multi',
+            spriteIndex: 14,
+            question: 'No kādiem materiāliem ir izgatavota šī rotaļu mašīna?',
+            options: MATERIALS,
+            correct: ['plastmasa', 'gumija'],
+            hint: 'Riteņi nav no tā paša materiāla kā virsbūve.'
+        },
+
+        // 15–19: fourth row
+        {
+            id: 'clay-mug',
+            type: 'single',
+            spriteIndex: 15,
+            question: 'No kāda materiāla ir izgatavota šī krūze?',
+            options: shuffleArray(['māls', 'plastmasa', 'stikls', 'metāls']),
+            correct: ['māls'],
+            hint: 'Tā ir keramikas krūze.'
+        },
+        {
+            id: 'wooden-table',
+            type: 'single',
+            spriteIndex: 16,
+            question: 'No kāda materiāla ir izgatavots šis galds?',
+            options: shuffleArray(['koks', 'metāls', 'plastmasa', 'gumija']),
+            correct: ['koks'],
+            hint: 'Uz šāda galda bieži raksta skolā.'
+        },
+        {
+            id: 'glass-jar',
+            type: 'multi',
+            spriteIndex: 17,
+            question: 'No kādiem materiāliem ir izgatavota šī burka ar vāciņu?',
+            options: MATERIALS,
+            correct: ['stikls', 'plastmasa'],
+            hint: 'Domā par caurspīdīgo trauku un vāciņu.'
+        },
+        {
+            id: 'eraser',
+            type: 'single',
+            spriteIndex: 18,
+            question: 'No kāda materiāla pārsvarā ir izgatavota šī dzēšgumija?',
+            options: shuffleArray(['gumija', 'metāls', 'koks', 'stikls']),
+            correct: ['gumija'],
+            hint: 'Tā ir mīksta un lokana.'
+        },
+        {
+            id: 'metal-nail',
+            type: 'single',
+            spriteIndex: 19,
+            question: 'No kāda materiāla ir izgatavota šī nagla?',
+            options: shuffleArray(['metāls', 'koks', 'plastmasa', 'gumija']),
+            correct: ['metāls'],
+            hint: 'Naglu sit ar āmuru kokā.'
+        },
+
+        // 20–24: fifth row (multi-material tools)
         {
             id: 'wheelbarrow',
             type: 'multi',
             spriteIndex: 20,
-            question: 'No kādiem materiāliem ir izgatavota ķerra?',
+            question: 'No kādiem materiāliem ir izgatavota šī ķerra?',
             options: MATERIALS,
             correct: ['metāls', 'gumija'],
-            hint: 'Kaste ir stingra, bet ritenis ir mīkstāks.'
+            hint: 'Kaste ir stingra, bet ritenis lokans.'
         },
         {
             id: 'shovel',
             type: 'multi',
             spriteIndex: 21,
-            question: 'No kādiem materiāliem ir izgatavota lāpsta?',
+            question: 'No kādiem materiāliem ir izgatavota šī lāpsta?',
             options: MATERIALS,
             correct: ['metāls', 'koks'],
-            hint: 'Padomā par kātu un lāpstas daļu.'
+            hint: 'Kāts un lāpstas daļa ir no dažādiem materiāliem.'
         },
         {
             id: 'hammer',
             type: 'multi',
             spriteIndex: 22,
-            question: 'No kādiem materiāliem ir izgatavots āmurs?',
+            question: 'No kādiem materiāliem ir izgatavots šis āmurs?',
             options: MATERIALS,
             correct: ['metāls', 'koks'],
             hint: 'Viena daļa sit, otra daļa turas rokā.'
@@ -379,7 +539,7 @@
             id: 'pot',
             type: 'multi',
             spriteIndex: 23,
-            question: 'No kādiem materiāliem ir izgatavots katls ar vāku?',
+            question: 'No kādiem materiāliem ir izgatavots šis katls ar vāku?',
             options: MATERIALS,
             correct: ['metāls', 'stikls', 'plastmasa'],
             hint: 'Katls ir stingrs, vāks caurspīdīgs, rokturi neuzkarst tik ātri.'
@@ -388,59 +548,150 @@
             id: 'school-bag',
             type: 'multi',
             spriteIndex: 24,
-            question: 'No kādiem materiāliem ir izgatavota skolas soma?',
+            question: 'No kādiem materiāliem ir izgatavota šī skolas soma?',
             options: MATERIALS,
             correct: ['audums', 'plastmasa'],
-            hint: 'Paskaties uz audumu un sprādzēm / rāvējslēdzējiem.'
+            hint: 'Apskati somas audumu un sprādzes / rāvējslēdzējus.'
         },
 
-        // --- Property questions (no sprite) ---
+        // 25–29: sixth row
         {
-            id: 'fragile',
+            id: 'wooden-plank',
+            type: 'single',
+            spriteIndex: 25,
+            question: 'No kāda materiāla ir izgatavots šis dēlis?',
+            options: shuffleArray(['koks', 'metāls', 'plastmasa', 'māls']),
+            correct: ['koks'],
+            hint: 'To var izmantot būvniecībā vai galdam.'
+        },
+        {
+            id: 'plastic-comb',
+            type: 'single',
+            spriteIndex: 26,
+            question: 'No kāda materiāla ir izgatavota šī ķemme?',
+            options: shuffleArray(['plastmasa', 'metāls', 'koks', 'gumija']),
+            correct: ['plastmasa'],
+            hint: 'Tā ir viegla un nedeformējas no ūdens.'
+        },
+        {
+            id: 'sponge',
+            type: 'single',
+            spriteIndex: 27,
+            question: 'No kāda materiāla pārsvarā ir izgatavots šis virtuves sūklis?',
+            options: shuffleArray(['plastmasa', 'māls', 'koks', 'metāls']),
+            correct: ['plastmasa'],
+            hint: 'Tas ir mīksts un labi uzsūc ūdeni.'
+        },
+        {
+            id: 'rubber-hose',
+            type: 'single',
+            spriteIndex: 28,
+            question: 'No kāda materiāla ir izgatavota šī dārza šļūtene?',
+            options: shuffleArray(['gumija', 'metāls', 'koks', 'stikls']),
+            correct: ['gumija'],
+            hint: 'Tā ir lokana un pa to plūst ūdens.'
+        },
+        {
+            id: 'satin-ribbon',
+            type: 'single',
+            spriteIndex: 29,
+            question: 'No kāda materiāla ir izgatavota šī lente?',
+            options: shuffleArray(['audums', 'plastmasa', 'metāls', 'koks']),
+            correct: ['audums'],
+            hint: 'To izmanto dāvanām un matu rotām.'
+        },
+
+        // ---- Property questions (10 pcs) ----
+        {
+            id: 'fragile-material',
             type: 'property',
-            spriteIndex: null,
-            question: 'Kurš materiāls ir vistrauslākais — viegli saplīst, ja to nomet?',
+            spriteIndex: 3,
+            question: 'Kurš materiāls ir vistrauslākais – viegli saplīst, ja to nomet?',
             options: shuffleArray(['stikls', 'gumija', 'audums', 'plastmasa']),
             correct: ['stikls'],
-            hint: 'Domā par glāzi un gumijas bumbu.'
+            hint: 'Padomā par glāzi un gumijas bumbu.'
         },
         {
-            id: 'flexible',
+            id: 'flexible-hose',
             type: 'property',
-            spriteIndex: null,
-            question: 'Kurš materiāls parasti ir vislokanākais?',
-            options: shuffleArray(['gumija', 'metāls', 'māls', 'stikls']),
-            correct: ['gumija'],
-            hint: 'Šo materiālu izmanto šļūtenēm un bumbām.'
+            spriteIndex: 28,
+            question: 'Kurš priekšmets ir vislokanākais?',
+            options: shuffleArray(['gumijas šļūtene', 'koka dēlis', 'metāla nagla', 'stikla glāze']),
+            correct: ['gumijas šļūtene'],
+            hint: 'To var viegli saliekt, nesalaužot.'
         },
         {
-            id: 'elastic',
+            id: 'elastic-sponge',
             type: 'property',
-            spriteIndex: null,
+            spriteIndex: 27,
             question: 'Kurš priekšmets pēc saspiešanas atgūst sākotnējo formu?',
             options: shuffleArray(['sūklis', 'stikla glāze', 'māla šķīvis', 'koka galds']),
             correct: ['sūklis'],
-            hint: 'Padomā par elastību — spēju atgūt formu.'
+            hint: 'Tas ir elastīgs materiāls.'
         },
         {
-            id: 'scratch',
+            id: 'scratch-board',
             type: 'property',
-            spriteIndex: null,
-            question: 'Ar kuru priekšmetu var vieglāk saskrāpēt koka dēli?',
-            options: shuffleArray(['nazis (metāls)', 'plastmasas ķemme', 'gumijas bumba', 'auduma dvielis']),
+            spriteIndex: 25,
+            question: 'Ar kuru priekšmetu var visvieglāk saskrāpēt koka dēli?',
+            options: shuffleArray(['nazis (metāls)', 'plastmasas ķemme', 'sūklis', 'gumijas bumba']),
             correct: ['nazis (metāls)'],
-            hint: 'Cietība palīdz saskrāpēt citus materiālus.'
+            hint: 'Cietāks materiāls var saskrāpēt mīkstāku.'
         },
         {
-            id: 'heat',
+            id: 'heat-conduction',
             type: 'property',
-            spriteIndex: null,
+            spriteIndex: 23,
             question: 'Kurš trauks paliek karsts ātrāk, ja tajā ielej karstu ūdeni?',
             options: shuffleArray(['metāla katls', 'māla krūze']),
             correct: ['metāla katls'],
             hint: 'Dažādi materiāli dažādi vada siltumu.'
+        },
+        {
+            id: 'water-absorb',
+            type: 'property',
+            spriteIndex: 27,             // <-- sūklis (6. rinda, kolonna 3)
+            question: 'Kurš priekšmets vislabāk uzsūc ūdeni?',
+            options: shuffleArray(['sūklis', 'plastmasas pudele', 'metāla karote', 'gumijas bumba']),
+            correct: ['sūklis'],
+            hint: 'To izmanto trauku mazgāšanai.'
+        },
+        {
+            id: 'rain-protection',
+            type: 'property',
+            spriteIndex: 11,
+            question: 'Kurš priekšmets vislabāk pasargā kājas no lietus?',
+            options: shuffleArray(['gumijas zābaki', 'dvielis', 'koka galds', 'māla šķīvis']),
+            correct: ['gumijas zābaki'],
+            hint: 'Tam jābūt necaurlaidīgam pret ūdeni.'
+        },
+        {
+            id: 'transparent-material',
+            type: 'property',
+            spriteIndex: 10,
+            question: 'Kurš materiāls ir caurspīdīgs, lai pa logu varētu redzēt ārā?',
+            options: shuffleArray(['stikls', 'koks', 'māls', 'metāls']),
+            correct: ['stikls'],
+            hint: 'Rāmis nav caurspīdīgs, bet vidus gan.'
+        },
+        {
+            id: 'soft-towel',
+            type: 'property',
+            spriteIndex: 13,
+            question: 'Kurš materiāls parasti ir mīksts kā dvielis?',
+            options: shuffleArray(['audums', 'metāls', 'stikls', 'koks']),
+            correct: ['audums'],
+            hint: 'No šī materiāla šuj drēbes un gultasveļu.'
+        },
+        {
+            id: 'hard-nail',
+            type: 'property',
+            spriteIndex: 19,
+            question: 'Kurš materiāls ir īpaši ciets un izturīgs kā nagla?',
+            options: shuffleArray(['metāls', 'gumija', 'audums', 'māls']),
+            correct: ['metāls'],
+            hint: 'No šī materiāla gatavo instrumentus un skrūves.'
         }
-        // Vēl jautājumus var viegli pievienot šeit, lai kopā būtu ~40.
     ];
 
     // ----- Quiz state -----
@@ -473,7 +724,7 @@
     function startQuiz() {
         const useAll = useAllCheckbox.checked;
 
-        sessionQuestions = shuffleArray(QUESTIONS.slice()); // copy & shuffle
+        sessionQuestions = shuffleArray(QUESTIONS.slice());
         if (!useAll && sessionQuestions.length > 10) {
             sessionQuestions = sessionQuestions.slice(0, 10);
         }
@@ -503,7 +754,7 @@
         answered = false;
         answerBtn.textContent = 'Atbildēt';
 
-        // Sprite
+        // Big sprite
         spriteWrapper.innerHTML = '';
         if (q.spriteIndex != null) {
             const canvas = createSpriteCanvas(q.spriteIndex);
@@ -516,6 +767,7 @@
         optionsContainer.innerHTML = '';
         const inputType = q.type === 'multi' ? 'checkbox' : 'radio';
         const name = 'answer';
+
         q.options.forEach((opt, idx) => {
             const id = `opt-${idx}`;
             const wrapper = document.createElement('label');
@@ -531,6 +783,16 @@
             span.textContent = capitalize(opt);
 
             wrapper.appendChild(input);
+
+            // Add mini sprite if configured
+            const spriteIdx = OPTION_SPRITES[opt];
+            if (spriteIdx !== undefined) {
+                const mini = createMiniSpriteCanvas(spriteIdx);
+                if (mini) {
+                    wrapper.appendChild(mini);
+                }
+            }
+
             wrapper.appendChild(span);
             optionsContainer.appendChild(wrapper);
         });
@@ -584,7 +846,8 @@
             feedbackEl.textContent = 'Pareizi!';
             feedbackEl.className = 'feedback ok';
         } else {
-            feedbackEl.textContent = 'Nepareizi. Pareizā atbilde: ' + q.correct.map(capitalize).join(', ') + '.';
+            feedbackEl.textContent = 'Nepareizi. Pareizā atbilde: ' +
+                q.correct.map(capitalize).join(', ') + '.';
             feedbackEl.className = 'feedback bad';
         }
 
@@ -635,7 +898,6 @@
 
     // ----- Helpers -----
     function shuffleArray(arr) {
-        // Fisher–Yates shuffle
         const a = arr.slice();
         for (let i = a.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
